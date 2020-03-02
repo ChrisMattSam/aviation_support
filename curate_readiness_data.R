@@ -115,7 +115,6 @@ for( i in 1:dim(matcher)[1]){
 combined_batch[ , `TAIL#` := str_remove(`TAIL#`, "-")]
 combined_batch <- combine_fields(combined_batch, 'serial_number', 'SERIAL NUMBER', 'TAIL#')
 combined_batch[, serial_number := str_pad(serial_number, 7,'left', '0' )] #this handles leading zeros that are truncated upon read-in
-combined_batch <- combined_batch[serial_number != "M822378"] #omit the one serial number that has a letter; report date is not in period of analysis
 stopifnot(!grepl("^[A-Za-z]", combined_batch$serial_number)) #this checks for the existence of letters in the field
 
 'Create new columns directly from older ones'
@@ -226,10 +225,6 @@ for(num in unique(temp_dt[,serial_number])) {
     #print('')
     }}
 
-#the below serial numbers have UH60 model that can confidently be imputed
-for (s_num in c('8423938','8323905')) {combined_batch[serial_number==s_num & model=='UH-60', model :='UH-60A']}
-for (s_num in c('8624550','8323900')) {combined_batch[serial_number==s_num & model=='UH-60', model :='UH-60L']}
-
 #ensure ONLY letters, chars, and hyphens populate the model field
 for (model in all_models) {
   val <- unlist(strsplit(model,''))
@@ -258,9 +253,6 @@ combined_batch[, max_fams := as.integer(length(unique(family_name))), by = c('se
 problem_serial_numbers <- unique(combined_batch[max_fams >1]$serial_number)
 setorderv(combined_batch, cols = c('serial_number', 'report_date'))
 unique(combined_batch[max_fams > 1, .(serial_number, family_name)])
-combined_batch[serial_number == "0708038" & model == "HH-60L", model := 'CH-47F' ]
-combined_batch[serial_number == "1520784" & model == "UH-72A", model := "UH-60M"]
-combined_batch[serial_number == "9100259" & model == "C-26E", model := "CH-47D"]
 
 #re-run the mapping to family name
 for (i in 1:length(all_models)) {
