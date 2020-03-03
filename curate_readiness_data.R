@@ -31,16 +31,12 @@ batch_2 <-data.table()
 
 filenames <- list.files(path = data_location, pattern="*.csv")
 
-#temporarily remove the FEB fy19 file due to an error
-filenames <- filenames[!grepl('FEB', filenames)]
-
 for (name in filenames) {
-  file <-fread(paste0(data_location,name), na.strings = c("")) # read-in one datafile
+  file <-fread(paste0(data_location,name), na.strings = c(""))
 
   'Generate the initial metadata file'
-  #metadata file function courtesy of Nate Latshaw (nlatshaw@ida.org)
-  fname <- paste0('Raw DataInventory ', name) # name the metadata file
-  fwrite(DataInventory(file),paste0(metadata_location,fname)) #generate the metadata file
+  #metadata function courtesy of Nate Latshaw (nlatshaw@ida.org)
+  fwrite(DataInventory(file),paste0(metadata_location,paste0('Raw DataInventory ', name))) #generate the metadata file
   a <- nrow(file)
   b <- ncol(file)
 
