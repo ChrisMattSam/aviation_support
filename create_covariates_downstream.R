@@ -1,4 +1,4 @@
-'christopher sampah'
+'Author: Christopher Sampah'
 
 source(paste0('//readiness_path/',
               'Analysis/Functions/csampah.ida/R/basic_functions.R'))

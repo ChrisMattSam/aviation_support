@@ -1,4 +1,4 @@
-'author: Christopher Sampah'
+'Author: Christopher Sampah'
 
 rm(list = ls())
 gc()
