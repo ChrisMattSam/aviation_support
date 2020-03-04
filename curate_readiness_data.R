@@ -1,4 +1,4 @@
-'author: Christopher Sampah'
+'Author: Christopher Sampah'
 
 rm(list = ls())
 gc()
@@ -31,16 +31,12 @@ batch_2 <-data.table()
 
 filenames <- list.files(path = data_location, pattern="*.csv")
 
-#temporarily remove the FEB fy19 file due to an error
-filenames <- filenames[!grepl('FEB', filenames)]
-
 for (name in filenames) {
-  file <-fread(paste0(data_location,name), na.strings = c("")) # read-in one datafile
+  file <-fread(paste0(data_location,name), na.strings = c(""))
 
   'Generate the initial metadata file'
-  #metadata file function courtesy of Nate Latshaw (nlatshaw@ida.org)
-  fname <- paste0('Raw DataInventory ', name) # name the metadata file
-  fwrite(DataInventory(file),paste0(metadata_location,fname)) #generate the metadata file
+  #metadata function courtesy of Nate Latshaw (nlatshaw@ida.org)
+  fwrite(DataInventory(file),paste0(metadata_location,paste0('Raw DataInventory ', name))) #generate the metadata file
   a <- nrow(file)
   b <- ncol(file)
 
@@ -106,7 +102,7 @@ c('report_date','REPORT DATE', 'AS OF DATE'),
 c('on_hand', 'ON HAND', 'ON HAND INVENTORY'),
 c('unit_name', 'UNIT', 'NAME'),
 c('model', 'MODEL', 'MDS')))
-#names(matcher) <- c('new_name', 'file_1','file_2')
+
 for( i in 1:dim(matcher)[1]){ 
   combined_batch <- combine_fields(combined_batch,matcher[[i,1]], matcher[[i,2]],matcher[[i,3]])
   }
@@ -132,7 +128,7 @@ combined_batch$orig.facility_id <- NULL
 
 'Impute for missing total_airframe_hours'
 combined_batch[, new_tot_hours := 0]
-tic('Impute total airframe hours for missing values')
+tic('Impute total airframe hours for missing values') #Time this specific part, takes a while
 j <- 0
 all_sn <- unique(combined_batch[!is.na(total_airframe_hours),serial_number])
 for (sn in all_sn) {
@@ -155,9 +151,6 @@ combined_batch[is.na(total_airframe_hours) & !is.na(new_tot_hours), total_airfra
 setkeyv(combined_batch, cols = c('serial_number','report_date'))
 toc()
 
-saveRDS(combined_batch,paste0('//readiness_path/Analysis/Data Cleaning/',
-       'Curation of readiness data/Output/Archive/intermediate_dataset.rds'))
-
 'Create facility_type field, add facility_uic and square feet'
 dt <- fread(list.files(paste0('//readiness_path/Data/Processed/',
                               'Master flight facility ID dictionary/'),full.names = TRUE)[2])
@@ -178,23 +171,21 @@ combined_batch[is.na(facility_type),.N]
 'Standardize the "model" field'
 combined_batch[grepl('\\\\',model), model := gsub('\\\\','',model)] #remove \\ chars in model values
 combined_batch[,model := gsub(' ','',model)] #remove spaces
-combined_batch[,model := toupper(model)] #all values are caps
+combined_batch[,model := toupper(model)] #change all values to be uppercase
 all_models <- unique(combined_batch$model)
-sseq <- c('0','1','2','3','4','5','6','7','8','9')
 
-#if there's no dash, insert the dash accordingly
-dashed_vals <- all_models[!grepl('-',all_models)]
+dashed_vals <- all_models[!grepl('-',all_models)] #if there's no dash, insert the dash accordingly
+sseq <- c('0','1','2','3','4','5','6','7','8','9')
 for (i in 1:length(dashed_vals)) {
   val <- dashed_vals[i]
   new_val <- ''
-  if (substr(val,2,2) %in% sseq) { new_val <- paste0(substr(val,1,1),'-',substr(val,2,nchar(val)))}
-  else if(substr(val,3,3) %in% sseq) {new_val <- paste0(substr(val,1,2),'-', substr(val,3,nchar(val)))}
+  if (substr(val,2,2) %in% sseq) { new_val <- paste0(substr(val,1,1),'-',substr(val,2,nchar(val)))} #e.g. C47 ==> C-47
+  else if(substr(val,3,3) %in% sseq) {new_val <- paste0(substr(val,1,2),'-', substr(val,3,nchar(val)))} #e.g. UH60 ==> UH-60
   combined_batch[model==dashed_vals[i], model := new_val]}
 #fix other non-standard issues
 fix_dict <- data.table(orig = c('C-23C1', 'C-26EE','AH-64DII'),
                        new=c('C-23C','C-26E','AH-64D'))
-f_d <- fix_dict
-for (i in 1:nrow(f_d)){combined_batch[model==f_d[i,1], model := f_d[i,2]]}
+for (i in 1:nrow(fix_dict)){combined_batch[model==fix_dict[i,1], model := fix_dict[i,2]]}
 
 'Investigate serial numbers with model UH-60'
 distinct_serial <- unique(combined_batch[model =='UH-60', serial_number])
@@ -204,10 +195,10 @@ for(num in distinct_serial) {
   #print(paste('Serial number:',num))
   its_models <- unique(combined_batch[serial_number==num, model])
   for(m in its_models) {
-    #print(paste(',model',m,'the report dates ranged from:'))
+    print(paste(',model',m,'the report dates ranged from:'))
     dd <- combined_batch[serial_number==num & model==m, report_date]
-    #print(paste(min(dd),'to', max(dd)) )
-    #print('')
+    print(paste(min(dd),'to', max(dd)) )
+    
     }}
 
 #look at other serial numbers that transition b/w UH60L and UH60A
@@ -236,7 +227,7 @@ for (model in all_models) {
 tmf <- as.data.frame(table(combined_batch[,c('model')]))
 fwrite(tmf, paste0(ancillary_location,'Tabulated Models Field.csv'))
 
-'Create a new "Model Family" field'
+'Create a new "Model Family" field' #e.g. model values of UH-60H and UH-60L have Model Family of UH-60
 for (i in 1:length(all_models)) {
   m <- all_models[i]
   while(substr(m,nchar(m),nchar(m)) %in% LETTERS){m <- substr(m,1,nchar(m)-1)}
@@ -262,10 +253,8 @@ for (i in 1:length(all_models)) {
     m <- substr(m,1,nchar(m)-2)}
   combined_batch[model==all_models[i], model_family :=m]}
 combined_batch[, family_name := aircraft(model_family)]
-#combined_batch[family_name == 'Pave Hawk', family_name := 'Blackhawk']
 
 'Data check for states'
-#combined_batch[, state_original := state]
 combined_batch[, state_id := ifelse(!is.na(facility_id), substr(facility_id,1,2) ,NA)]
 duic <- fread('//equipment_readiness_path/Data/Original from sponsor/LOGSA/Second LOGSA visit/D_UIC.txt',na.strings = c(""))
 duic <- unique(duic[,c('UIC', 'LOC_CD')])
@@ -290,7 +279,7 @@ for(name in nnames) {stopifnot(combined_batch[get(name)=='' |get(name)==' ',.N]=
    combined_batch <- combine_fields(combined_batch, v, V, V_days_hrs)}
 
 #create var nmc from the field "NMC", and fill in NA's with the sum of nmcs and nmcm
-combined_batch[report_date == '2017-08-15', NMC := `POSS HRS` - MC] # 10/18/19 fix, see email
+combined_batch[report_date == '2017-08-15', NMC := `POSS HRS` - MC] # particular fix
 combined_batch[, nmc := as.double(NMC)]
 combined_batch[ is.na(nmc), nmc := as.double(nmcs + nmcm)]
 
@@ -322,7 +311,6 @@ stopifnot(combined_batch[, sum(duplicated(serial_number)), by = report_date][V1 
 stopifnot(combined_batch[!(day(report_date) ==15), .N] == 0) # whether the data/report was submitted on the 15th of the month
 
 dataset_dates <- unique(combined_batch$report_date)
-#stopifnot(seq.Date(min(dataset_dates),max(dataset_dates), by = "month") %in% dataset_dates)
 seq.Date(min(dataset_dates),max(dataset_dates), by = "month")[!(seq.Date(min(dataset_dates),max(dataset_dates), by = "month") %in% dataset_dates)]
 
 fname <- paste0('Processed_Aircraft_Readiness_FY2007_to_',format(max(combined_batch$report_date), "%Y%m"), '.csv')

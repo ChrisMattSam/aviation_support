@@ -1,4 +1,4 @@
-'christopher sampah'
+'Author: Christopher Sampah'
 
 source(paste0('//readiness_path/',
               'Analysis/Functions/csampah.ida/R/basic_functions.R'))
@@ -13,10 +13,9 @@ create_deployment_affected_covariates <- function(data){
                      "aircraft_dep_in_6_months_or_less","aircraft_dep_in_12_months_or_less","prev_month_hours_flown",
                      "prev_month_total_airframe_hours","hours_flown_3_month_mean")
   dt <- as.data.table(data)
-  #dt <- unique(dt[, original_cols, with = F])
   
-  ic <- c()
-  fixed_wing <- c('Huron','Citation V', 'Sherpa')
+  ic <- c() #vector to keep track of covariates we want in the final output
+  fixed_wing <- c('Huron','Citation V', 'Sherpa') # these need to be excluded from the creation of the covariates
   if( !('deployed_helicopter' %in% names(dt))) {
     dt[, deployed_helicopter := F]
     dt[(STATUS %in% c('mobilized', 'mob','deployed')) | (assign_func_code == 'DEP'), deployed_helicopter := T]

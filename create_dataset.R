@@ -1,5 +1,4 @@
-'christopher sampah'
-
+'Author: Christopher Sampah'
 
 rm(list =ls())
 gc()
@@ -16,12 +15,11 @@ if("csampah.ida" %in% rownames(installed.packages())) {library(csampah.ida)
 } else(source('//readiness_path/Analysis/Functions/csampah.ida/R/basic_functions.R'))
 
 output <- '//readiness_path/Analysis/Data Cleaning/create readiness covariates for modeling/Output/'
-#local <- 'C:/Users/csampah/Documents/FTS 2b/temp_output/'
 dt.original <- readRDS(paste0('//readiness_path/Data/Processed/',
                      'Master aircraft readiness data from Devon Hall unduped/',
                      'Processed_Aircraft_Readiness_FY2007_to_201909.rds'))
 
-# request for mike and initial data filtering ####
+# one-off data request and initial data filtering ####
 ff <- c()
 for( field in names(dt.original)) {if( !all(grepl('AVCRAD',unique(dt.original[,get(field)])) == F)) { ff <- c(field,ff)}}
 print('fields with "AVCRAD" text string in them:')
@@ -37,7 +35,7 @@ for( value in c('1106', '1109', '1107', '1108')) {
 
 dt <- dt[report_date > "2010-09-15"]
 
-# 1., 2.,3.,4. cols to write in the final table
+# cols from the original dataset to be included in the new dataset immediately
 dt[pmc > poss_hrs, pmc := poss_hrs]
 dt[, pmc_perc := pmc/poss_hrs]
 name_change <- list('old' = c('sq_feet','facility_age','quality'),
@@ -46,32 +44,8 @@ setnames(dt, name_change$old, name_change$new)
 ic <- name_change$new
 ic <- c(ic, 'hours_flown','serial_number','report_date','nmc_perc','facility_id','facility_uic','uic', 'pmc_perc')
 fixed_wing <- c('Huron','Citation V', 'Sherpa')
- 
-# data requests ####
-#mike 1
-length(unique(dt[year(report_date) >= 2017 & facility_type == 'AASF', facility_id]))
-length(unique(dt[year(report_date) >= 2017 & facility_type != 'TASMG' & facility_type !=  'AASF',
-                 facility_id]))
-dt[, val := max(report_date), by = facility_id]
-p <- '//readiness_path/Analysis/Data Cleaning/create readiness covariates for modeling/Output/test.csv'
-fwrite(unique(dt[year(val) >= 2017,c('facility_id','facility_type','val')]),file = p)
-
-#mike 2 10/11 request
-table1 <- setnames(as.data.table(plyr::count(dt, c('facility_type'))), 'freq', 'count')
-table1[, pct := round(count/sum(table1$count),3)]
-
-#mike 3 10/17 request
-'count of unique AASF facilities in the last month of reliable readiness data'
-length(unique(dt[report_date == max(dt$report_date) & !is.na(facility_id) & facility_type == 'AASF',
-                 facility_id]))
-table1 <- setnames(as.data.table(plyr::count(dt[report_date > '2017-09-15' &
-                                                  !(STATUS %in% c('deployed','mobilized'))],
-                                             c('facility_type'))), 'freq', 'count')
-table1[, pct := round(count/sum(table1$count),3)]
-
 
 # address one-time fixes####
-#UH-60V issue
 dt[model == 'UH-60V', model := 'UH-60M']
 #TN1 issue: for report date 2015-10-15, 242 aircraft at facility TN1; this is too much
 these.sn <- dt[facility_id == 'TN1' & report_date == '2015-10-15', serial_number]
@@ -144,8 +118,7 @@ print(paste0('Number of dropped records: ',toString(dt[reset ==T,.N])))
 dt <- dt[reset==F]
 print(paste0('Number of records before, then after reset removal, respectively: ', toString(a),',',toString(dt[,.N])))
 
-dt <- merge(readRDS(paste0('//readiness_path/',
-                                         'Analysis/Data Cleaning/curate reset data/Output/time_since_MCD.rds')),
+dt <- merge(readRDS('//readiness_path/Analysis/Data Cleaning/curate reset data/Output/time_since_MCD.rds'),
             dt, by = c('serial_number', 'report_date'), all.y = T)
 ic <- c(ic, 'reset', 'reset_pct', 'next_MCD_date','previous_MCD_date','days_until_next_MCD','days_since_last_MCD')
 
@@ -231,9 +204,6 @@ dt <- dt[drop_me == F]
 dt[, drop_me := NULL]
 dim(dt)
 
-saveRDS(dt,file = paste0('//readiness_path/','Analysis/Data Cleaning/create readiness covariates for modeling/Output/',
-                                         '2020_01_14_hours_research/readiness_covariates.rds'))
-
 #if poss hrs is greater than 744 (31 days x 24 hours)
 head(dt[poss_hrs > 744, c('serial_number', 'report_date', 'poss_hrs','nmc_perc')])
 dt[, date.b4 := report_date - months(1)]
@@ -287,7 +257,7 @@ dt[is.na(facility_id) & STATE == prior_state & !is.na(prior_facility), facility_
 h1 <- dt[is.na(facility_id),.N]
 for(sn in unique(dt[is.na(facility_id), serial_number])) { # obtain serial numbers with missing facility
   dts <- dt[serial_number == sn & is.na(facility_id), report_date] #obtain the dates where facility is missing
-  #print(paste('for serial number',sn))
+  
   for ( i in 1:length(dts)) {
     a <- dt[serial_number == sn & report_date == (dts[i] %m-% months(1)), facility_id]
     b <- dt[serial_number == sn & report_date == (dts[i] %m+% months(1)), facility_id]
